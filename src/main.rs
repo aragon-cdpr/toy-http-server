@@ -7,12 +7,41 @@ use std::{
         TcpListener, 
         TcpStream
     }, 
-    str::FromStr
+    str::FromStr,
+    collections::{
+        HashSet
+    },
+    sync::{
+        LazyLock
+    }
 };
 
 const CRLF: &str = "\r\n";
 const PORT: &str = "6969";
 const IP_ADDRESS: &str = "127.0.0.1";
+
+static REQUEST_HEADERS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
+        "accept", "accept-charset", "accept-encoding", "accept-language",
+        "authorization", "expect", "from", "host", "if-match", "if-modified-since",
+        "if-none-match", "if-range", "if-unmodified-since", "max-forwards",
+        "proxy-authorization", "range", "referer", "te", "user-agent",
+    ])
+});
+
+static GENERAL_HEADERS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
+        "cache-control", "connection", "date", "pragma", "trailer", "transfer-encoding",
+        "upgrade", "via", "warning",
+    ])
+});
+
+static ENTITY_HEADERS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
+        "allow", "content-encoding", "content-language", "content-length", "content-location",
+        "content-md5", "content-range", "content-type", "expires", "last-modified",
+    ])
+});
 
 #[derive(Debug, Clone)]
 enum HttpMethods {
@@ -38,15 +67,21 @@ impl FromStr for HttpMethods {
 #[derive(Debug, Clone)]
 enum HttpHeaderKind {
     Request,
+    General,
     Response,
-    Representation,
-    Payload
+    Entity,
+    Custom
 }
 #[derive(Debug, Clone)]
 struct HttpHeader {
     kind: HttpHeaderKind,
     name: String,
     value: String
+}
+impl HttpHeader {
+    pub fn new(kind: HttpHeaderKind, name: String, value: String) -> Self {
+        HttpHeader {kind, name, value}
+    }
 }
 
 
@@ -59,7 +94,7 @@ struct Request {
 }
 
 impl Request {
-    pub fn from(req: String, headers: Vec<HttpHeader>) -> Self {
+    pub fn from(req: &String, headers: Vec<HttpHeader>) -> Self {
         
         let mut method: HttpMethods = HttpMethods::GET;
         let mut protocol: String = String::from("HTTP/1.1");
@@ -68,8 +103,8 @@ impl Request {
         let mut parts = req.split_whitespace();
         if let Some(val) = parts.next() {
             match val.to_string().parse::<HttpMethods>() {
-                Ok(i) =>  {
-                    method = i;
+                Ok(met) =>  {
+                    method = met;
                 },
                 Err(err) => {
                     eprintln!("{:?}", err);
@@ -103,15 +138,26 @@ impl Request {
     pub fn get_protocol(&self) -> String {
         return self.protocol.clone();
     } 
-    pub fn fetch_headers(req: Vec<String>) -> Vec<HttpHeader> {
-        vec![
-            HttpHeader {
-                kind: HttpHeaderKind::Request,
-                name: String::from("Accept"), 
-                value: String::from("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"),
+    pub fn fetch_headers(headers: &Vec<String>) -> Vec<HttpHeader> {
 
-            }
-        ]
+        headers.iter().filter_map(|header| {
+            let mut parts = header.splitn(2, ':');
+            let name = parts.next()?.trim().to_lowercase();
+            let value = parts.next()?.trim().to_string();
+    
+            let kind = if REQUEST_HEADERS.contains(name.as_str()) {
+                HttpHeaderKind::Request
+            } else if GENERAL_HEADERS.contains(name.as_str()) {
+                HttpHeaderKind::General
+            } else if ENTITY_HEADERS.contains(name.as_str()) {
+                HttpHeaderKind::Entity
+            } else {
+                HttpHeaderKind::Custom
+            };
+    
+            Some(HttpHeader::new(kind, name, value))
+        }).collect()
+        
     }
 }
 
@@ -123,8 +169,8 @@ fn handle_connetion(stream: &mut TcpStream) {
         .take_while(|line| { !line.is_empty()})
         .collect();
     let headers = request.drain(1..).collect();
-    let headers = Request::fetch_headers(headers);
-    let req = Request::from(request[0].clone(), headers);
+    let headers = Request::fetch_headers(&headers);
+    let req = Request::from(&request[0], headers);
     println!("{:#?}", req);
     let status = "HTTP/1.1 200 OK";
     let file = fs::read_to_string("index.html").unwrap();
