@@ -21,7 +21,7 @@ impl FromStr for HttpMethods {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HttpHeaderKind {
     Request,
     General,
@@ -29,7 +29,7 @@ pub enum HttpHeaderKind {
     Entity,
     Custom
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpHeader {
     kind: HttpHeaderKind,
     name: String,

@@ -1,4 +1,5 @@
 use std::{
+    io,
     fs, 
     io::{
         prelude::*, 
@@ -12,8 +13,9 @@ mod utils;
 mod request;
 use utils::consts::*;
 use request::*;
+use response::*;
 
-fn handle_connetion(stream: &mut TcpStream) {
+fn handle_connetion(stream: &mut TcpStream) -> std::io::Result<()> {
     let buf_reader = BufReader::new(&mut *stream);
     let mut request: Vec<_> = buf_reader
         .lines()
@@ -23,20 +25,26 @@ fn handle_connetion(stream: &mut TcpStream) {
     let headers = request.drain(1..).collect();
     let headers = Request::fetch_headers(&headers);
     let req = Request::from(&request[0], headers);
-    println!("{:#?}", req);
-    let status = "HTTP/1.1 200 OK";
-    let file = fs::read_to_string(format!("{ROOT_DIR}/index.html")).unwrap();
-    let length = file.len();
 
+    let mut file = fs::read_to_string(format!("{ROOT_DIR}/404.html")).unwrap();
+
+    if let Ok(val) = fs::read_to_string(format!("{ROOT_DIR}/{req_path}/index.html", req_path = req.get_path())) {
+        file = val;
+    } else if let Ok(val) = fs::read_to_string(format!("{ROOT_DIR}/{req_path}.html", req_path = req.get_path())){
+        file = val;
+    } else {
+        println!("not found: 404");
+    }
+
+    let length = file.len();
+    let response = Response::new("200".to_string(), vec![HttpHeader::new(HttpHeaderKind::Response, "Content-Length".to_string(), length.to_string())], Some(file.clone()));
+    let status = "HTTP/1.1 200 OK";
+
+    println!("{:#?}", response);
 
     let response = format!("{status}{CRLF}Content-Length: {length}{CRLF}{CRLF}{file}");
 
-    match stream.write_all(response.as_bytes()) {
-        Ok(_) => {},
-        Err(err) => {
-            eprintln!("Error occured during writing data: {:?}", err);
-        }
-    }
+    stream.write_all(response.as_bytes())
 }
 
 fn main() {

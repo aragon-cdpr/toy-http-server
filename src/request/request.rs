@@ -6,7 +6,8 @@ pub struct Request {
     protocol: String,
     method: HttpMethods,
     path: String,
-    headers: Vec<HttpHeader>
+    headers: Vec<HttpHeader>,
+    message: Option<String>
 }
 
 impl Request {
@@ -39,7 +40,8 @@ impl Request {
             protocol,
             method,
             path,
-            headers
+            headers,
+            message: None
         }
     }
     pub fn get_path(&self) -> String {
