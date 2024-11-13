@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::string::ToString;
 
 #[derive(Debug, Clone)]
 pub enum HttpMethods {
@@ -38,5 +39,11 @@ pub struct HttpHeader {
 impl HttpHeader {
     pub fn new(kind: HttpHeaderKind, name: String, value: String) -> Self {
         HttpHeader {kind, name, value}
+    }
+}
+
+impl ToString for HttpHeader {
+    fn to_string(&self) -> String {
+        format!("{key}: {value}", key= self.name, value = self.value)
     }
 }

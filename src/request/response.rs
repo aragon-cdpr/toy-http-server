@@ -1,6 +1,7 @@
 use super::http::*;
 use std::str::FromStr;
 use std::string::ToString;
+use crate::utils::consts::*;
 
 
 #[derive(Debug, PartialEq, Eq)]
@@ -74,5 +75,15 @@ impl Response {
             headers,
             message
         }
+    }
+}
+
+impl ToString for Response {
+    fn to_string(&self) -> String {
+        format!("{status}{CRLF}{headers}{CRLF}{CRLF}{message}",
+            status = self.status,
+            headers = self.headers.iter().map(|header| { header.to_string() }).collect::<Vec<String>>().join(CRLF),
+            message = self.message.clone().unwrap_or(" ".to_string())
+        )
     }
 }

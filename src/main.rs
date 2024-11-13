@@ -25,24 +25,33 @@ fn handle_connetion(stream: &mut TcpStream) -> std::io::Result<()> {
     let headers = request.drain(1..).collect();
     let headers = Request::fetch_headers(&headers);
     let req = Request::from(&request[0], headers);
+    let mut status_code: String = "".to_string();
 
     let mut file = fs::read_to_string(format!("{ROOT_DIR}/404.html")).unwrap();
 
     if let Ok(val) = fs::read_to_string(format!("{ROOT_DIR}/{req_path}/index.html", req_path = req.get_path())) {
         file = val;
+        status_code = "200".to_string();
     } else if let Ok(val) = fs::read_to_string(format!("{ROOT_DIR}/{req_path}.html", req_path = req.get_path())){
         file = val;
+        status_code = "200".to_string();
     } else {
         println!("not found: 404");
+        status_code = "404".to_string();
     }
 
     let length = file.len();
-    let response = Response::new("200".to_string(), vec![HttpHeader::new(HttpHeaderKind::Response, "Content-Length".to_string(), length.to_string())], Some(file.clone()));
-    let status = "HTTP/1.1 200 OK";
 
-    println!("{:#?}", response);
+    let response = Response::new(
+        status_code, 
+vec![
+            HttpHeader::new(HttpHeaderKind::Response, "Content-Length".to_string(), length.to_string()),
+            HttpHeader::new(HttpHeaderKind::Response, "X-Custom-Header".to_string(), "test".to_string())
+        ], 
+        Some(file.clone())
+    );
 
-    let response = format!("{status}{CRLF}Content-Length: {length}{CRLF}{CRLF}{file}");
+    let response = response.to_string();
 
     stream.write_all(response.as_bytes())
 }
