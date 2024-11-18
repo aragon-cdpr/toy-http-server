@@ -1,7 +1,11 @@
-use super::http::*;
-use std::str::FromStr;
-use std::string::ToString;
-use crate::utils::consts::*;
+use std::{
+    str::FromStr,
+    string::ToString
+};
+use crate::utils::{
+    consts::*,
+    http::*
+};
 
 
 #[derive(Debug, PartialEq, Eq)]

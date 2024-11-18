@@ -1,5 +1,4 @@
 use std::{
-    io,
     fs, 
     io::{
         prelude::*, 
@@ -9,9 +8,15 @@ use std::{
         TcpStream
     }    
 };
+
 mod utils;
 mod request;
-use utils::consts::*;
+mod response;
+
+use utils::{
+    consts::*,
+    http::*
+};
 use request::*;
 use response::*;
 
